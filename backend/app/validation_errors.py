@@ -5,6 +5,7 @@ from typing import Any
 _FIELD_LABELS: dict[str, str] = {
     "username": "Логин",
     "password": "Пароль",
+    "password_confirm": "Подтверждение пароля",
     "role": "Роль",
     "file": "Файл",
 }

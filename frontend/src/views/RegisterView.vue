@@ -8,12 +8,17 @@ const auth = useAuthStore();
 const router = useRouter();
 const username = ref("");
 const password = ref("");
+const passwordConfirm = ref("");
 const err = ref("");
 
 async function submit() {
   err.value = "";
+  if (password.value !== passwordConfirm.value) {
+    err.value = "Пароли не совпадают";
+    return;
+  }
   try {
-    await auth.register(username.value, password.value);
+    await auth.register(username.value, password.value, passwordConfirm.value);
   } catch (e) {
     err.value = getApiErrorMessage(e, "Не удалось зарегистрироваться");
     return;
@@ -40,6 +45,10 @@ async function submit() {
       <div class="field">
         <label>Пароль</label>
         <input v-model="password" type="password" required minlength="4" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label>Пароль ещё раз</label>
+        <input v-model="passwordConfirm" type="password" required minlength="4" autocomplete="new-password" />
       </div>
       <p v-if="err" class="error">{{ err }}</p>
       <button type="submit" class="btn">Создать аккаунт</button>

@@ -32,3 +32,14 @@ class VoiceCommandListItem(BaseModel):
 class VoiceCommandUpdate(BaseModel):
     edited_transcript: str | None = None
     confirmed: bool | None = None
+
+
+class VoicePreviewResponse(BaseModel):
+    preview_id: str
+    raw_transcript: str
+    parsed_command: str | None
+    parsed_identifier: str | None
+
+
+class VoicePreviewConfirm(BaseModel):
+    preview_id: str = Field(min_length=8, max_length=64)

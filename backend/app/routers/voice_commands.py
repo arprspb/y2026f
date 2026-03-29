@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,10 +15,16 @@ from app.config import get_settings
 from app.database import get_db
 from app.deps import CurrentUserDep
 from app.models import User, UserRole, VoiceCommand
-from app.schemas.voice import VoiceCommandCreateResponse, VoiceCommandListItem, VoiceCommandUpdate
+from app.schemas.voice import (
+    VoiceCommandCreateResponse,
+    VoiceCommandListItem,
+    VoiceCommandUpdate,
+    VoicePreviewConfirm,
+    VoicePreviewResponse,
+)
 from app.services.asr import transcribe_wav_file
 from app.services.audio_convert import convert_to_wav_16k_mono
-from app.services.command_parser import parse_voice_text
+from app.services.command_parser import normalize_transcript_for_commands, parse_voice_text
 
 router = APIRouter(prefix="/voice-commands", tags=["voice-commands"])
 settings = get_settings()
@@ -27,6 +34,125 @@ def _ensure_upload_dir() -> Path:
     p = Path(settings.upload_dir)
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+PREVIEW_SUBDIR = "preview"
+
+
+def _preview_dir(upload_dir: Path) -> Path:
+    p = upload_dir / PREVIEW_SUBDIR
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+async def _transcribe_uploaded_file(dest: Path) -> str:
+    wav_path = dest.parent / f"{uuid.uuid4().hex}.wav"
+    try:
+        await asyncio.to_thread(convert_to_wav_16k_mono, dest, wav_path)
+        try:
+            return await asyncio.to_thread(transcribe_wav_file, wav_path)
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(e),
+            ) from e
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
+    finally:
+        wav_path.unlink(missing_ok=True)
+
+
+
+@router.post("/preview", response_model=VoicePreviewResponse)
+async def preview_voice_command(
+    current: CurrentUserDep,
+    file: Annotated[UploadFile, File(description="Аудиофайл (webm, wav, ogg, ...)")],
+) -> VoicePreviewResponse:
+    upload_dir = _ensure_upload_dir()
+    prev_dir = _preview_dir(upload_dir)
+    preview_id = uuid.uuid4().hex
+    ext = Path(file.filename or "audio").suffix or ".webm"
+    dest = prev_dir / f"{preview_id}{ext}"
+    content = await file.read()
+    async with aiofiles.open(dest, "wb") as out:
+        await out.write(content)
+
+    transcript_raw = await _transcribe_uploaded_file(dest)
+    prepared = normalize_transcript_for_commands(transcript_raw)
+    parsed = parse_voice_text(transcript_raw)
+    meta = {
+        "raw_transcript": prepared,
+        "parsed_command": parsed.command,
+        "parsed_identifier": parsed.identifier,
+    }
+    meta_path = prev_dir / f"{preview_id}.json"
+    async with aiofiles.open(meta_path, "w", encoding="utf-8") as out:
+        await out.write(json.dumps(meta, ensure_ascii=False))
+
+    return VoicePreviewResponse(
+        preview_id=preview_id,
+        raw_transcript=prepared,
+        parsed_command=parsed.command,
+        parsed_identifier=parsed.identifier,
+    )
+
+
+@router.post("/confirm", response_model=VoiceCommandCreateResponse)
+async def confirm_voice_command(
+    body: VoicePreviewConfirm,
+    current: CurrentUserDep,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> VoiceCommandCreateResponse:
+    upload_dir = _ensure_upload_dir()
+    prev_dir = _preview_dir(upload_dir)
+    pid = body.preview_id.strip()
+    audio_path = None
+    for path in prev_dir.iterdir():
+        if path.is_file() and path.name.startswith(pid) and not path.name.endswith(".json"):
+            audio_path = path
+            break
+    meta_path = prev_dir / f"{pid}.json"
+    if audio_path is None or not meta_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Предпросмотр не найден. Запишите команду снова.",
+        )
+    async with aiofiles.open(meta_path, encoding="utf-8") as f:
+        meta = json.loads(await f.read())
+
+    ext = audio_path.suffix
+    stored_name = f"{uuid.uuid4().hex}{ext}"
+    final_path = upload_dir / stored_name
+    audio_path.replace(final_path)
+    meta_path.unlink(missing_ok=True)
+
+    vc = VoiceCommand(
+        user_id=current.id,
+        audio_filename=stored_name,
+        raw_transcript=meta["raw_transcript"],
+        edited_transcript=None,
+        parsed_command=meta.get("parsed_command"),
+        parsed_identifier=meta.get("parsed_identifier"),
+        recorded_at=datetime.now(UTC),
+        confirmed=False,
+        confirmed_at=None,
+    )
+    db.add(vc)
+    await db.flush()
+    await db.refresh(vc)
+    return VoiceCommandCreateResponse(
+        id=vc.id,
+        raw_transcript=vc.raw_transcript,
+        edited_transcript=vc.edited_transcript,
+        parsed_command=vc.parsed_command,
+        parsed_identifier=vc.parsed_identifier,
+        recorded_at=vc.recorded_at,
+        confirmed=vc.confirmed,
+        operator_username=current.username,
+    )
 
 
 @router.post("", response_model=VoiceCommandCreateResponse)
@@ -43,29 +169,13 @@ async def create_voice_command(
     async with aiofiles.open(dest, "wb") as out:
         await out.write(content)
 
-    wav_path = upload_dir / f"{uuid.uuid4().hex}.wav"
-    try:
-        await asyncio.to_thread(convert_to_wav_16k_mono, dest, wav_path)
-        try:
-            transcript = await asyncio.to_thread(transcribe_wav_file, wav_path)
-        except RuntimeError as e:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=str(e),
-            ) from e
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e),
-            ) from e
-    finally:
-        wav_path.unlink(missing_ok=True)
-
-    parsed = parse_voice_text(transcript)
+    transcript_raw = await _transcribe_uploaded_file(dest)
+    prepared = normalize_transcript_for_commands(transcript_raw)
+    parsed = parse_voice_text(transcript_raw)
     vc = VoiceCommand(
         user_id=current.id,
         audio_filename=stored_name,
-        raw_transcript=transcript,
+        raw_transcript=prepared,
         edited_transcript=None,
         parsed_command=parsed.command,
         parsed_identifier=parsed.identifier,
@@ -185,7 +295,8 @@ async def patch_voice_command(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
 
     if body.edited_transcript is not None:
-        vc.edited_transcript = body.edited_transcript
+        prepared = normalize_transcript_for_commands(body.edited_transcript)
+        vc.edited_transcript = prepared
         parsed = parse_voice_text(body.edited_transcript)
         vc.parsed_command = parsed.command
         vc.parsed_identifier = parsed.identifier

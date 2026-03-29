@@ -38,8 +38,12 @@ export const useAuthStore = defineStore("auth", () => {
     role.value = parseJwtRole(data.access_token);
   }
 
-  async function register(u: string, password: string) {
-    await api.post("/api/auth/register", { username: u, password });
+  async function register(u: string, password: string, passwordConfirm: string) {
+    await api.post("/api/auth/register", {
+      username: u,
+      password,
+      password_confirm: passwordConfirm,
+    });
   }
 
   async function fetchMe() {

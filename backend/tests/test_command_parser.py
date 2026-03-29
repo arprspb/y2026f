@@ -25,3 +25,8 @@ def test_mixed_id_with_register() -> None:
     assert r.command == "зарегистрировать"
     assert r.identifier is not None
     assert "45345" in r.identifier
+
+def test_spoken_digits_merge_to_eight() -> None:
+    r = parse_voice_text("начать обработку один два три четыре пять шесть семь восемь")
+    assert r.command == "начать обработку"
+    assert r.identifier == "12345678"

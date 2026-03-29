@@ -126,3 +126,14 @@ textarea {
   border: 1px solid #cfd8dc;
   background: #e8eef2;
 }
+
+.preview-block {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+.preview-block h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+

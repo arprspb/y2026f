@@ -5,11 +5,21 @@ import api from "@/api/client";
 import { getApiErrorMessage } from "@/api/errors";
 
 const router = useRouter();
+
+type Phase = "idle" | "recording" | "processing" | "preview";
+
+const phase = ref<Phase>("idle");
 const recording = ref(false);
 const err = ref("");
+const processing = ref(false);
 const mediaRecorder = ref<MediaRecorder | null>(null);
 const chunks = ref<Blob[]>([]);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
+
+const previewId = ref<string | null>(null);
+const previewTranscript = ref("");
+const previewCommand = ref<string | null>(null);
+const previewIdentifier = ref<string | null>(null);
 
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
@@ -84,8 +94,17 @@ function startViz(stream: MediaStream) {
   drawLevel();
 }
 
+function clearPreview() {
+  previewId.value = null;
+  previewTranscript.value = "";
+  previewCommand.value = null;
+  previewIdentifier.value = null;
+  phase.value = "idle";
+}
+
 async function start() {
   err.value = "";
+  clearPreview();
   chunks.value = [];
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : undefined;
@@ -96,16 +115,18 @@ async function start() {
   };
   mr.onstop = () => stream.getTracks().forEach((t) => t.stop());
   recording.value = true;
+  phase.value = "recording";
   startViz(stream);
   mr.start(250);
 }
 
-async function stopAndSend() {
+async function stopAndRecognize() {
   err.value = "";
   const mr = mediaRecorder.value;
   if (!mr || mr.state === "inactive") {
     recording.value = false;
     stopViz();
+    phase.value = "idle";
     return;
   }
   await new Promise<void>((resolve) => {
@@ -118,34 +139,86 @@ async function stopAndSend() {
   const blob = new Blob(chunks.value, { type: "audio/webm" });
   if (!blob.size) {
     err.value = "Запись пустая — разрешите микрофон и попробуйте ещё раз.";
+    phase.value = "idle";
     return;
   }
+  processing.value = true;
+  phase.value = "processing";
   const fd = new FormData();
   fd.append("file", blob, "record.webm");
   try {
-    const { data } = await api.post("/api/voice-commands", fd);
-    await router.push({ name: "detail", params: { id: String(data.id) } });
+    const { data } = await api.post<{
+      preview_id: string;
+      raw_transcript: string;
+      parsed_command: string | null;
+      parsed_identifier: string | null;
+    }>("/api/voice-commands/preview", fd);
+    previewId.value = data.preview_id;
+    previewTranscript.value = data.raw_transcript;
+    previewCommand.value = data.parsed_command;
+    previewIdentifier.value = data.parsed_identifier;
+    phase.value = "preview";
   } catch (e) {
     err.value = getApiErrorMessage(
       e,
-      "Ошибка отправки. Проверьте бэкенд, ffmpeg и модель VOSK.",
+      "Ошибка распознавания. Проверьте бэкенд, ffmpeg и модель VOSK.",
     );
+    phase.value = "idle";
+    clearPreview();
+  } finally {
+    processing.value = false;
   }
+}
+
+async function saveToHistory() {
+  if (!previewId.value) return;
+  err.value = "";
+  try {
+    const { data } = await api.post<{ id: number }>("/api/voice-commands/confirm", {
+      preview_id: previewId.value,
+    });
+    clearPreview();
+    await router.push({ name: "detail", params: { id: String(data.id) } });
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Не удалось сохранить запись.");
+  }
+}
+
+function discardAndRecordAgain() {
+  clearPreview();
+  err.value = "";
 }
 </script>
 
 <template>
   <div class="card">
     <h1>Запись команды</h1>
-    <p>«Начать» → произнесите команду → «Стоп и отправить».</p>
+    <p>«Начать запись» → произнесите команду → «Стоп» → проверьте результат → «Сохранить в историю» или «Перезаписать».</p>
     <p v-if="err" class="error">{{ err }}</p>
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap">
-      <button type="button" class="btn" :disabled="recording" @click="start">Начать запись</button>
-      <button type="button" class="btn btn-secondary" :disabled="!recording" @click="stopAndSend">Стоп и отправить</button>
-    </div>
-    <div v-show="recording" class="record-viz-wrap">
-      <p class="record-viz-caption">Идёт запись — уровень сигнала с микрофона</p>
-      <canvas ref="canvasRef" class="record-viz-canvas" width="320" height="72" />
+
+    <template v-if="phase !== 'preview'">
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center">
+        <button type="button" class="btn" :disabled="recording || processing" @click="start">Начать запись</button>
+        <button type="button" class="btn btn-secondary" :disabled="!recording || processing" @click="stopAndRecognize">
+          Стоп
+        </button>
+        <span v-if="processing" class="hint">Распознаём…</span>
+      </div>
+      <div v-show="recording" class="record-viz-wrap">
+        <p class="record-viz-caption">Идёт запись — уровень сигнала с микрофона</p>
+        <canvas ref="canvasRef" class="record-viz-canvas" width="320" height="72" />
+      </div>
+    </template>
+
+    <div v-else class="preview-block">
+      <h2>Результат распознавания</h2>
+      <p><strong>Текст:</strong> {{ previewTranscript || "—" }}</p>
+      <p><strong>Команда:</strong> {{ previewCommand || "—" }}</p>
+      <p><strong>Параметр (ID):</strong> {{ previewIdentifier || "—" }}</p>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem">
+        <button type="button" class="btn" @click="saveToHistory">Сохранить в историю</button>
+        <button type="button" class="btn btn-secondary" @click="discardAndRecordAgain">Перезаписать</button>
+      </div>
     </div>
   </div>
 </template>

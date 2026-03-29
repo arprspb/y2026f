@@ -36,6 +36,52 @@ def normalize_text(text: str) -> str:
     return t
 
 
+# Одиночные русские числительные (как часто отдаёт ASR) -> цифры для парсера
+_RU_DIGIT_WORD: dict[str, str] = {
+    "ноль": "0",
+    "один": "1",
+    "два": "2",
+    "три": "3",
+    "четыре": "4",
+    "пять": "5",
+    "шесть": "6",
+    "семь": "7",
+    "восемь": "8",
+    "девять": "9",
+}
+
+
+def normalize_transcript_for_commands(raw: str) -> str:
+    """
+    Приводит устные числительные к цифрам и сливает подряд идущие одноразрядные цифры
+    (чтобы отдельно произнесённые цифры стали 8-значным номером для regex).
+    """
+    t = normalize_text(raw)
+    if not t:
+        return ""
+    tokens = t.split()
+    mapped = [_RU_DIGIT_WORD.get(w, w) for w in tokens]
+    merged: list[str] = []
+    i = 0
+    while i < len(mapped):
+        tok = mapped[i]
+        if len(tok) == 1 and tok.isdigit():
+            run = [tok]
+            j = i + 1
+            while j < len(mapped) and len(mapped[j]) == 1 and mapped[j].isdigit():
+                run.append(mapped[j])
+                j += 1
+            if len(run) >= 2:
+                merged.append("".join(run))
+            else:
+                merged.append(tok)
+            i = j
+        else:
+            merged.append(tok)
+            i += 1
+    return " ".join(merged)
+
+
 def extract_command(normalized: str) -> str | None:
     for phrase in COMMAND_PHRASES:
         if phrase in normalized:
@@ -56,7 +102,8 @@ def extract_identifiers(normalized: str) -> list[str]:
 
 
 def parse_voice_text(raw: str) -> ParseResult:
-    normalized = normalize_text(raw)
+    prepared = normalize_transcript_for_commands(raw)
+    normalized = normalize_text(prepared)
     cmd = extract_command(normalized)
     ids = extract_identifiers(normalized)
     primary = ids[0] if ids else None
