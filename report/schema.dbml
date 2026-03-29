@@ -1,0 +1,34 @@
+// Схема БД проекта y2026f (PostgreSQL). Роли пользователя — enum userrole в СУБД.
+// Импорт в https://dbdiagram.io
+
+Enum userrole {
+  admin
+  operator_record
+  operator_verify
+}
+
+Table users {
+  id int [pk, increment, note: 'PK']
+  username varchar(64) [not null, unique, note: 'логин']
+  hashed_password varchar(255) [not null]
+  role userrole [not null, note: 'роль: админ / запись / проверка']
+  is_active boolean [not null, default: true, note: 'блокировка учётки']
+  created_at timestamptz [not null, note: 'default now() на сервере БД']
+}
+
+Table voice_commands {
+  id int [pk, increment]
+  user_id int [not null, note: 'FK: автор записи (оператор записи)']
+  audio_filename varchar(512) [not null, note: 'имя файла в хранилище uploads']
+  raw_transcript text [not null, default: '', note: 'текст после ASR и нормализации']
+  edited_transcript text [null, note: 'правка оператором проверки']
+  parsed_command varchar(255) [null, note: 'извлечённая ключевая фраза']
+  parsed_identifier varchar(255) [null, note: 'идентификатор из текста']
+  recorded_at timestamptz [not null, note: 'default now() на сервере БД']
+  confirmed boolean [not null, default: false, note: 'подтверждение результата']
+  confirmed_at timestamptz [null, note: 'время подтверждения']
+  confirmed_by_user_id int [null, note: 'FK: кто подтвердил']
+}
+
+Ref: voice_commands.user_id > users.id [delete: cascade]
+Ref: voice_commands.confirmed_by_user_id > users.id [delete: set null]

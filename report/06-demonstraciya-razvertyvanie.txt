@@ -1,0 +1,29 @@
+Демонстрация работы и развёртывание (пункты 3 и 4 задания)
+
+Инструкция пользователя и видеодемонстрация
+
+Пользователь входит по логину и паролю, выданным администратором. Оператор записи открывает экран записи, диктует команду, просматривает предпросмотр и сохраняет запись. Оператор проверки открывает историю, при необходимости фильтрует записи, открывает карточку, прослушивает аудио, вносит правку текста и нажимает подтверждение. Администратор создаёт учётные записи с ролями и может блокировать пользователей.
+
+Развёрнутая пошаговая сценарная инструкция для записи видеоролика вынесена в отдельный файл, чтобы не дублировать её в основной части отчёта:
+
+report/video-demonstration-steps.txt [https://github.com/arprspb/y2026f/blob/main/report/video-demonstration-steps.txt]
+
+Интерфейс: корневой компонент и маршруты
+
+frontend/src/App.vue [https://github.com/arprspb/y2026f/blob/main/frontend/src/App.vue]
+
+frontend/src/router/index.ts [https://github.com/arprspb/y2026f/blob/main/frontend/src/router/index.ts]
+
+Инструкция для развёртывания у эксперта
+
+Полное пошаговое описание запуска через Docker Compose, переменные окружения, миграции базы, скачивание модели VOSK и доступ к интерфейсу и Swagger приведено в README репозитория.
+
+README.md [https://github.com/arprspb/y2026f/blob/main/README.md]
+
+Краткий чеклист для эксперта: скопировать .env.example в .env, задать секрет и при необходимости BOOTSTRAP_ADMIN_USERNAME и BOOTSTRAP_ADMIN_PASSWORD, распаковать модель в каталог models согласно README, выполнить docker compose up --build, дождаться миграций и health API, открыть веб-интерфейс на порту 8080 и документацию API на порту 8000.
+
+docker-compose.yml [https://github.com/arprspb/y2026f/blob/main/docker-compose.yml]
+
+Краткий перечень маршрутов API для справки без дублирования в основном тексте:
+
+appendices/api-overview.txt [https://github.com/arprspb/y2026f/blob/main/appendices/api-overview.txt]

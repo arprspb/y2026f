@@ -1,0 +1,31 @@
+Процессы, сценарии использования и информационные потоки (пункт 2.4 задания)
+
+Соответствие сценариям MVP из задания
+
+Сценарий 1. Оператор распознаёт команду: вход в систему, экран записи, озвучивание, предпросмотр распознавания, сохранение в истории — реализовано экраном записи и цепочкой API preview и confirm.
+
+Сценарий 2. Корректировка результата: оператор проверки открывает карточку из истории, прослушивает аудио, правит текст при необходимости, подтверждает — реализовано экраном детализации и полем подтверждения в базе.
+
+Сценарий 3. Поиск и верификация: список с фильтрами по команде, параметру, дате, оператору — экран истории и запросы к API.
+
+Сценарий 4. Администрирование: создание пользователей с ролью, блокировка — экран «Пользователи» для роли администратор, эндпоинты создания и обновления пользователя.
+
+Диаграмма прецедентов (UML Use Case) подготовлена в PlantUML для импорта в draw.io или другой редактор с поддержкой PlantUML:
+
+report/use-case.puml [https://github.com/arprspb/y2026f/blob/main/report/use-case.puml]
+
+Диаграммы потоков данных (DFD) для уровня «голос — распознавание — сохранение» и отдельно для подтверждения:
+
+report/dfd.puml [https://github.com/arprspb/y2026f/blob/main/report/dfd.puml]
+
+Маршруты API голосовых команд и пользователей:
+
+backend/app/routers/voice_commands.py [https://github.com/arprspb/y2026f/blob/main/backend/app/routers/voice_commands.py]
+
+backend/app/routers/users.py [https://github.com/arprspb/y2026f/blob/main/backend/app/routers/users.py]
+
+Правила доступа по ролям для записи, просмотра всех записей и подтверждения:
+
+backend/app/role_access.py [https://github.com/arprspb/y2026f/blob/main/backend/app/role_access.py]
+
+backend/app/deps.py [https://github.com/arprspb/y2026f/blob/main/backend/app/deps.py]

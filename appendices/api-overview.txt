@@ -1,0 +1,19 @@
+Приложение. Краткий обзор API (необязательное дополнение к отчёту)
+
+Базовый префикс в развёрнутом виде: /api
+
+Аутентификация: POST /api/auth/login с телом username и password, ответ с access_token Bearer.
+
+Регистрация POST /api/auth/register отключена (код 403).
+
+Пользователи: GET /api/users/me — текущий пользователь; GET/POST /api/users — список и создание (только администратор); PATCH /api/users/{id} — роль и активность (администратор).
+
+Голосовые команды: POST /api/voice-commands/preview — загрузка аудио, предпросмотр; POST /api/voice-commands/confirm — сохранение после предпросмотра; GET /api/voice-commands — список с query-фильтрами; GET/PATCH /api/voice-commands/{id} — карточка и правки; GET /api/voice-commands/{id}/audio — скачивание аудио.
+
+Подробные схемы тел запросов и ответов доступны в интерактивной документации FastAPI по адресу сервера /docs.
+
+backend/app/routers/auth.py [https://github.com/arprspb/y2026f/blob/main/backend/app/routers/auth.py]
+
+backend/app/routers/users.py [https://github.com/arprspb/y2026f/blob/main/backend/app/routers/users.py]
+
+backend/app/routers/voice_commands.py [https://github.com/arprspb/y2026f/blob/main/backend/app/routers/voice_commands.py]

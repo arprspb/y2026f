@@ -1,0 +1,35 @@
+@startuml use_case_voice_commands
+skinparam actorStyle awesome
+left to right direction
+
+actor "Оператор\n(запись)" as OpRec
+actor "Оператор\n(проверка)" as OpVer
+actor "Администратор" as Admin
+
+rectangle "Система распознавания\nголосовых команд" {
+  usecase "Вход в систему" as UC_Login
+  usecase "Записать голосовую\nкоманду (микрофон)" as UC_Record
+  usecase "Просмотреть свою\nисторию записей" as UC_HistOwn
+  usecase "Просмотреть все записи,\nфильтры" as UC_HistAll
+  usecase "Открыть карточку,\nаудио, правка текста" as UC_Edit
+  usecase "Подтвердить результат\nраспознавания" as UC_Confirm
+  usecase "Управление\nпользователями" as UC_AdminUsers
+}
+
+OpRec --> UC_Login
+OpRec --> UC_Record
+OpRec --> UC_HistOwn
+
+OpVer --> UC_Login
+OpVer --> UC_HistAll
+OpVer --> UC_Edit
+OpVer --> UC_Confirm
+
+Admin --> UC_Login
+Admin --> UC_HistAll
+Admin --> UC_Edit
+Admin --> UC_Confirm
+Admin --> UC_AdminUsers
+Admin --> UC_Record
+
+@enduml

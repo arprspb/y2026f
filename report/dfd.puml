@@ -1,0 +1,40 @@
+@startuml dfd_level0
+skinparam rectangle {
+  roundCorner 10
+}
+title DFD (уровень 0): распознавание и сохранение голосовой команды
+
+actor "Оператор" as Op
+database "Хранилище\nаудио (uploads)" as Store
+database "PostgreSQL" as DB
+rectangle "Веб-клиент\n(Vue)" as UI
+rectangle "API\n(FastAPI)" as API
+rectangle "VOSK\n(ASR)" as Vosk
+rectangle "Парсер\nкоманд" as Parser
+
+Op --> UI : голос,\nдействия UI
+UI --> API : HTTPS JSON,\nmultipart аудио
+API --> Vosk : WAV 16 kHz
+Vosk --> API : текст
+API --> Parser : текст
+Parser --> API : команда,\nидентификатор
+API --> DB : транскрипт,\nметаданные,\nпользователь
+API --> Store : файл записи
+API --> UI : ответы,\nсписки,\nкарточки
+
+@enduml
+
+@startuml dfd_confirm
+title DFD: подтверждение записи оператором проверки
+
+actor "Оператор\nпроверки" as Ver
+database "PostgreSQL" as DB
+rectangle "Веб-клиент" as UI
+rectangle "API" as API
+
+Ver --> UI
+UI --> API : GET/PATCH\nкарточка записи
+API --> DB : чтение/обновление\nedited_*, confirmed_*
+API --> UI : обновлённые данные
+
+@enduml
