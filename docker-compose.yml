@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: voice_commands
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d voice_commands"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/voice_commands
+      SECRET_KEY: change-me-use-openssl-rand-hex-32
+      VOSK_MODEL_PATH: /models/vosk-model-small-ru-0.22
+      UPLOAD_DIR: /uploads
+      CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      - uploads:/uploads
+      - ./models/vosk-model-small-ru-0.22:/models/vosk-model-small-ru-0.22:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  uploads:
