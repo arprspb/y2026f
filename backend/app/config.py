@@ -14,6 +14,11 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Первичный администратор: создаётся при старте, если пользователя с таким логином ещё нет.
+    # Роль admin через API создавать нельзя — только эти переменные или правка БД.
+    bootstrap_admin_username: str = ""
+    bootstrap_admin_password: str = ""
+
 
 def get_settings() -> Settings:
     return Settings()

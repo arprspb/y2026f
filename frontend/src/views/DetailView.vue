@@ -17,6 +17,7 @@ const row = ref<{
   recorded_at: string;
   confirmed: boolean;
   operator_username: string;
+  confirmed_by_username: string | null;
 } | null>(null);
 
 const edited = ref("");
@@ -78,7 +79,10 @@ watch(
 <template>
   <div v-if="row" class="card" style="max-width: 720px">
     <h1>Запись #{{ row.id }}</h1>
-    <p><strong>Оператор:</strong> {{ row.operator_username }}</p>
+    <p><strong>Оператор (запись):</strong> {{ row.operator_username }}</p>
+    <p v-if="row.confirmed && row.confirmed_by_username">
+      <strong>Подтвердил:</strong> {{ row.confirmed_by_username }}
+    </p>
     <p><strong>Время:</strong> {{ new Date(row.recorded_at).toLocaleString() }}</p>
     <p><strong>Команда:</strong> {{ row.parsed_command || "—" }}</p>
     <p><strong>Идентификатор:</strong> {{ row.parsed_identifier || "—" }}</p>
@@ -88,12 +92,12 @@ watch(
     </div>
     <div class="field">
       <label>Текст (правка)</label>
-      <textarea v-model="edited" rows="4" />
+      <textarea v-model="edited" rows="4" :readonly="!auth.canVerify" />
     </div>
     <p v-if="err" class="error">{{ err }}</p>
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap">
+    <div v-if="auth.canVerify" style="display: flex; gap: 0.5rem; flex-wrap: wrap">
       <button type="button" class="btn btn-secondary" @click="saveEdit">Сохранить правку</button>
-      <button type="button" class="btn" @click="confirm">Подтвердить</button>
+      <button type="button" class="btn" @click="confirm" :disabled="row.confirmed">Подтвердить</button>
     </div>
     <p v-if="row.confirmed"><strong>Подтверждено</strong></p>
   </div>

@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.bootstrap import ensure_bootstrap_admin
 from app.config import get_settings
 from app.database import engine
 from app.routers import auth, users, voice_commands
@@ -15,6 +16,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await ensure_bootstrap_admin(settings)
     yield
     await engine.dispose()
 

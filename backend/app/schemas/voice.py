@@ -12,6 +12,7 @@ class VoiceCommandCreateResponse(BaseModel):
     recorded_at: datetime
     confirmed: bool
     operator_username: str
+    confirmed_by_username: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -25,6 +26,7 @@ class VoiceCommandListItem(BaseModel):
     recorded_at: datetime
     confirmed: bool
     operator_username: str
+    confirmed_by_username: str | None = None
 
     model_config = {"from_attributes": True}
 

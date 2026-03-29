@@ -1,18 +1,6 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel
 
 from app.models import UserRole
-
-
-class UserCreate(BaseModel):
-    username: str = Field(min_length=2, max_length=64)
-    password: str = Field(min_length=4, max_length=512)
-    password_confirm: str = Field(min_length=4, max_length=512)
-
-    @model_validator(mode="after")
-    def passwords_match(self) -> "UserCreate":
-        if self.password != self.password_confirm:
-            raise ValueError("Пароли не совпадают")
-        return self
 
 
 class UserLogin(BaseModel):

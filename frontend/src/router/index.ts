@@ -6,8 +6,7 @@ const router = createRouter({
   routes: [
     { path: "/", redirect: "/record" },
     { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { guest: true } },
-    { path: "/register", name: "register", component: () => import("@/views/RegisterView.vue"), meta: { guest: true } },
-    { path: "/record", name: "record", component: () => import("@/views/RecordView.vue"), meta: { auth: true } },
+    { path: "/record", name: "record", component: () => import("@/views/RecordView.vue"), meta: { auth: true, record: true } },
     { path: "/history", name: "history", component: () => import("@/views/HistoryView.vue"), meta: { auth: true } },
     { path: "/history/:id", name: "detail", component: () => import("@/views/DetailView.vue"), meta: { auth: true } },
     { path: "/admin", name: "admin", component: () => import("@/views/AdminView.vue"), meta: { auth: true, admin: true } },
@@ -20,7 +19,10 @@ router.beforeEach(async (to) => {
     return { name: "login", query: { redirect: to.fullPath } };
   }
   if (to.meta.guest && auth.isAuthenticated) {
-    return { name: "record" };
+    return auth.homePath();
+  }
+  if (to.meta.record && auth.isAuthenticated && !auth.canRecord) {
+    return { name: "history" };
   }
   if (to.meta.admin) {
     if (!auth.isAuthenticated) return { name: "login" };
@@ -32,7 +34,7 @@ router.beforeEach(async (to) => {
           return { name: "login" };
         }
       }
-      if (auth.role !== "admin") return { name: "record" };
+      if (auth.role !== "admin") return auth.homePath();
     }
   }
   return true;

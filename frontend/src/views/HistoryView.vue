@@ -13,6 +13,7 @@ export interface Row {
   recorded_at: string;
   confirmed: boolean;
   operator_username: string;
+  confirmed_by_username: string | null;
 }
 
 const rows = ref<Row[]>([]);
@@ -76,6 +77,7 @@ onMounted(load);
           <th>Команда</th>
           <th>ID параметра</th>
           <th>Оператор</th>
+          <th>Подтвердил</th>
           <th>Время</th>
           <th>Подтв.</th>
         </tr>
@@ -88,6 +90,7 @@ onMounted(load);
           <td>{{ r.parsed_command || "—" }}</td>
           <td>{{ r.parsed_identifier || "—" }}</td>
           <td>{{ r.operator_username }}</td>
+          <td>{{ r.confirmed_by_username || "—" }}</td>
           <td>{{ new Date(r.recorded_at).toLocaleString() }}</td>
           <td>{{ r.confirmed ? "да" : "нет" }}</td>
         </tr>

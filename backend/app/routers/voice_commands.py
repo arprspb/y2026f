@@ -10,11 +10,18 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from fastapi.responses import FileResponse
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.config import get_settings
 from app.database import get_db
-from app.deps import CurrentUserDep
-from app.models import User, UserRole, VoiceCommand
+from app.deps import (
+    CurrentUserDep,
+    can_access_voice_command_row,
+    can_confirm_voice,
+    can_record_voice,
+    can_see_all_voice_commands,
+)
+from app.models import User, VoiceCommand
 from app.schemas.voice import (
     VoiceCommandCreateResponse,
     VoiceCommandListItem,
@@ -71,6 +78,11 @@ async def preview_voice_command(
     current: CurrentUserDep,
     file: Annotated[UploadFile, File(description="Аудиофайл (webm, wav, ogg, ...)")],
 ) -> VoicePreviewResponse:
+    if not can_record_voice(current.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Запись голоса разрешена операторам записи и администратору",
+        )
     upload_dir = _ensure_upload_dir()
     prev_dir = _preview_dir(upload_dir)
     preview_id = uuid.uuid4().hex
@@ -106,6 +118,11 @@ async def confirm_voice_command(
     current: CurrentUserDep,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> VoiceCommandCreateResponse:
+    if not can_record_voice(current.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Сохранение записи разрешено операторам записи и администратору",
+        )
     upload_dir = _ensure_upload_dir()
     prev_dir = _preview_dir(upload_dir)
     pid = body.preview_id.strip()
@@ -152,6 +169,7 @@ async def confirm_voice_command(
         recorded_at=vc.recorded_at,
         confirmed=vc.confirmed,
         operator_username=current.username,
+        confirmed_by_username=None,
     )
 
 
@@ -161,6 +179,11 @@ async def create_voice_command(
     db: Annotated[AsyncSession, Depends(get_db)],
     file: Annotated[UploadFile, File(description="Аудиофайл (webm, wav, ogg, ...)")],
 ) -> VoiceCommandCreateResponse:
+    if not can_record_voice(current.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Запись голоса разрешена операторам записи и администратору",
+        )
     upload_dir = _ensure_upload_dir()
     ext = Path(file.filename or "audio").suffix or ".webm"
     stored_name = f"{uuid.uuid4().hex}{ext}"
@@ -195,6 +218,7 @@ async def create_voice_command(
         recorded_at=vc.recorded_at,
         confirmed=vc.confirmed,
         operator_username=current.username,
+        confirmed_by_username=None,
     )
 
 
@@ -208,9 +232,15 @@ async def list_voice_commands(
     date_to: Annotated[datetime | None, Query()] = None,
     operator_username: Annotated[str | None, Query()] = None,
 ) -> list[VoiceCommandListItem]:
-    stmt = select(VoiceCommand, User.username).join(User, VoiceCommand.user_id == User.id)
+    author = aliased(User)
+    confirmer = aliased(User)
+    stmt = (
+        select(VoiceCommand, author.username, confirmer.username)
+        .join(author, VoiceCommand.user_id == author.id)
+        .outerjoin(confirmer, VoiceCommand.confirmed_by_user_id == confirmer.id)
+    )
 
-    if current.role != UserRole.admin:
+    if not can_see_all_voice_commands(current.role):
         stmt = stmt.where(VoiceCommand.user_id == current.id)
     if parsed_command:
         stmt = stmt.where(VoiceCommand.parsed_command.ilike(f"%{parsed_command}%"))
@@ -226,7 +256,7 @@ async def list_voice_commands(
     if date_to:
         stmt = stmt.where(VoiceCommand.recorded_at <= date_to)
     if operator_username:
-        stmt = stmt.where(User.username == operator_username)
+        stmt = stmt.where(author.username == operator_username)
 
     stmt = stmt.order_by(VoiceCommand.recorded_at.desc())
     result = await db.execute(stmt)
@@ -240,9 +270,10 @@ async def list_voice_commands(
             parsed_identifier=vc.parsed_identifier,
             recorded_at=vc.recorded_at,
             confirmed=vc.confirmed,
-            operator_username=uname,
+            operator_username=author_uname,
+            confirmed_by_username=cuname,
         )
-        for vc, uname in rows
+        for vc, author_uname, cuname in rows
     ]
 
 
@@ -252,16 +283,19 @@ async def get_voice_command(
     current: CurrentUserDep,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> VoiceCommandCreateResponse:
+    author = aliased(User)
+    confirmer = aliased(User)
     result = await db.execute(
-        select(VoiceCommand, User.username)
-        .join(User, VoiceCommand.user_id == User.id)
+        select(VoiceCommand, author.username, confirmer.username)
+        .join(author, VoiceCommand.user_id == author.id)
+        .outerjoin(confirmer, VoiceCommand.confirmed_by_user_id == confirmer.id)
         .where(VoiceCommand.id == command_id)
     )
     row = result.one_or_none()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
-    vc, uname = row
-    if current.role != UserRole.admin and vc.user_id != current.id:
+    vc, uname, cuname = row
+    if not can_access_voice_command_row(current, vc):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     return VoiceCommandCreateResponse(
         id=vc.id,
@@ -272,6 +306,7 @@ async def get_voice_command(
         recorded_at=vc.recorded_at,
         confirmed=vc.confirmed,
         operator_username=uname,
+        confirmed_by_username=cuname,
     )
 
 
@@ -282,17 +317,35 @@ async def patch_voice_command(
     current: CurrentUserDep,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> VoiceCommandCreateResponse:
+    author = aliased(User)
+    confirmer = aliased(User)
     result = await db.execute(
-        select(VoiceCommand, User.username)
-        .join(User, VoiceCommand.user_id == User.id)
+        select(VoiceCommand, author.username, confirmer.username)
+        .join(author, VoiceCommand.user_id == author.id)
+        .outerjoin(confirmer, VoiceCommand.confirmed_by_user_id == confirmer.id)
         .where(VoiceCommand.id == command_id)
     )
     row = result.one_or_none()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
-    vc, uname = row
-    if current.role != UserRole.admin and vc.user_id != current.id:
+    vc, uname, cuname = row
+    if not can_access_voice_command_row(current, vc):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+
+    if body.confirmed is not None:
+        if not can_confirm_voice(current.role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Подтверждать записи могут операторы проверки и администратор",
+            )
+        if body.confirmed is True:
+            vc.confirmed = True
+            vc.confirmed_at = datetime.now(UTC)
+            vc.confirmed_by_user_id = current.id
+        else:
+            vc.confirmed = False
+            vc.confirmed_at = None
+            vc.confirmed_by_user_id = None
 
     if body.edited_transcript is not None:
         prepared = normalize_transcript_for_commands(body.edited_transcript)
@@ -300,15 +353,15 @@ async def patch_voice_command(
         parsed = parse_voice_text(body.edited_transcript)
         vc.parsed_command = parsed.command
         vc.parsed_identifier = parsed.identifier
-    if body.confirmed is True:
-        vc.confirmed = True
-        vc.confirmed_at = datetime.now(UTC)
-    elif body.confirmed is False:
-        vc.confirmed = False
-        vc.confirmed_at = None
 
     await db.flush()
     await db.refresh(vc)
+    if vc.confirmed_by_user_id:
+        r2 = await db.execute(select(User.username).where(User.id == vc.confirmed_by_user_id))
+        cuname = r2.scalar_one_or_none()
+    else:
+        cuname = None
+
     return VoiceCommandCreateResponse(
         id=vc.id,
         raw_transcript=vc.raw_transcript,
@@ -318,6 +371,7 @@ async def patch_voice_command(
         recorded_at=vc.recorded_at,
         confirmed=vc.confirmed,
         operator_username=uname,
+        confirmed_by_username=cuname,
     )
 
 
@@ -331,7 +385,7 @@ async def get_audio(
     vc = result.scalar_one_or_none()
     if vc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
-    if current.role != UserRole.admin and vc.user_id != current.id:
+    if not can_access_voice_command_row(current, vc):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     path = Path(settings.upload_dir) / vc.audio_filename
     if not path.is_file():

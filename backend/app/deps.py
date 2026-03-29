@@ -6,10 +6,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import User, UserRole
+from app.enums import UserRole
+from app.models import User, VoiceCommand
+from app.role_access import (
+    can_access_voice_command,
+    can_confirm_voice,
+    can_record_voice,
+    can_see_all_voice_commands,
+)
 from app.security import decode_token
 
 security = HTTPBearer(auto_error=False)
+
+
+def can_access_voice_command_row(user: User, vc: VoiceCommand) -> bool:
+    return can_access_voice_command(user.role, vc.user_id, user.id)
 
 
 async def get_current_user(

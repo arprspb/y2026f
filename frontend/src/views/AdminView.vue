@@ -3,17 +3,19 @@ import { onMounted, ref } from "vue";
 import api from "@/api/client";
 import { getApiErrorMessage } from "@/api/errors";
 
+type OpRole = "operator_record" | "operator_verify";
+
 interface U {
   id: number;
   username: string;
-  role: "admin" | "operator";
+  role: "admin" | OpRole;
   is_active: boolean;
 }
 
 const users = ref<U[]>([]);
 const newUsername = ref("");
 const newPassword = ref("");
-const newRole = ref<"admin" | "operator">("operator");
+const newRole = ref<OpRole>("operator_record");
 const err = ref("");
 
 async function load() {
@@ -47,7 +49,7 @@ async function toggleBlock(u: U) {
   await load();
 }
 
-async function setRole(u: U, role: "admin" | "operator") {
+async function setRole(u: U, role: OpRole) {
   await api.patch(`/api/users/${u.id}`, { role });
   await load();
 }
@@ -65,11 +67,14 @@ onMounted(load);
       <input v-model="newUsername" placeholder="Логин" required />
       <input v-model="newPassword" type="password" placeholder="Пароль" required />
       <select v-model="newRole">
-        <option value="operator">Оператор</option>
-        <option value="admin">Админ</option>
+        <option value="operator_record">Оператор (запись)</option>
+        <option value="operator_verify">Оператор (проверка)</option>
       </select>
       <button type="submit" class="btn">Создать</button>
     </form>
+    <p style="font-size: 0.9rem; color: var(--muted, #666)">
+      Роль администратора задаётся только через переменные окружения при первом запуске API.
+    </p>
 
     <table class="table">
       <thead>
@@ -84,9 +89,14 @@ onMounted(load);
         <tr v-for="u in users" :key="u.id">
           <td>{{ u.username }}</td>
           <td>
-            <select :value="u.role" @change="setRole(u, ($event.target as HTMLSelectElement).value as 'admin' | 'operator')">
-              <option value="operator">Оператор</option>
-              <option value="admin">Админ</option>
+            <span v-if="u.role === 'admin'">Администратор</span>
+            <select
+              v-else
+              :value="u.role"
+              @change="setRole(u, ($event.target as HTMLSelectElement).value as OpRole)"
+            >
+              <option value="operator_record">Оператор (запись)</option>
+              <option value="operator_verify">Оператор (проверка)</option>
             </select>
           </td>
           <td>{{ u.is_active ? "да" : "заблокирован" }}</td>

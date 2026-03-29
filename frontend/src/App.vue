@@ -19,7 +19,7 @@ onMounted(async () => {
 
 <template>
   <header v-if="auth.isAuthenticated" class="nav">
-    <RouterLink to="/record">Запись</RouterLink>
+    <RouterLink v-if="auth.canRecord" to="/record">Запись</RouterLink>
     <RouterLink to="/history">История</RouterLink>
     <RouterLink v-if="auth.role === 'admin'" to="/admin">Пользователи</RouterLink>
     <span style="margin-left: auto">{{ auth.username }}</span>

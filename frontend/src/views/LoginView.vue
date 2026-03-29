@@ -16,7 +16,7 @@ async function submit() {
   try {
     await auth.login(username.value, password.value);
     await nextTick();
-    const redirect = (route.query.redirect as string) || "/record";
+    const redirect = (route.query.redirect as string) || auth.homePath();
     await router.replace(redirect);
   } catch (e) {
     err.value = getApiErrorMessage(e, "Неверный логин или пароль");
@@ -39,6 +39,6 @@ async function submit() {
       <p v-if="err" class="error">{{ err }}</p>
       <button type="submit" class="btn">Войти</button>
     </form>
-    <p><RouterLink to="/register">Регистрация</RouterLink></p>
+    <p style="font-size: 0.9rem; opacity: 0.85">Учётную запись выдаёт администратор.</p>
   </div>
 </template>
