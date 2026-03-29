@@ -1,3 +1,4 @@
+import { unref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
@@ -15,26 +16,28 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
+  const role = unref(auth.role);
+  const canRecord = unref(auth.canRecord);
   if (to.meta.auth && !auth.isAuthenticated) {
     return { name: "login", query: { redirect: to.fullPath } };
   }
   if (to.meta.guest && auth.isAuthenticated) {
     return auth.homePath();
   }
-  if (to.meta.record && auth.isAuthenticated && !auth.canRecord) {
+  if (to.meta.record && auth.isAuthenticated && !canRecord) {
     return { name: "history" };
   }
   if (to.meta.admin) {
     if (!auth.isAuthenticated) return { name: "login" };
-    if (auth.role !== "admin") {
-      if (!auth.role && auth.token) {
+    if (role !== "admin") {
+      if (!role && auth.token) {
         try {
           await auth.fetchMe();
         } catch {
           return { name: "login" };
         }
       }
-      if (auth.role !== "admin") return auth.homePath();
+      if (unref(auth.role) !== "admin") return auth.homePath();
     }
   }
   return true;

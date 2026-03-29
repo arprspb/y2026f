@@ -19,15 +19,26 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!token.value);
 
-  function parseJwtRole(t: string): Role | null {
+  /** JWT payload — Base64URL (не стандартный atob без замены -/_). */
+  function decodeJwtPayload(t: string): { role?: string } | null {
     try {
-      const payload = JSON.parse(atob(t.split(".")[1])) as { role?: string };
-      const r = payload.role;
-      if (r && (ROLES as readonly string[]).includes(r)) return r as Role;
-      return null;
+      const parts = t.split(".");
+      if (parts.length < 2) return null;
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      let padded = base64;
+      while (padded.length % 4) padded += "=";
+      return JSON.parse(atob(padded)) as { role?: string };
     } catch {
       return null;
     }
+  }
+
+  function parseJwtRole(t: string): Role | null {
+    const payload = decodeJwtPayload(t);
+    const r = payload?.role;
+    if (r && (ROLES as readonly string[]).includes(r)) return r as Role;
+    return null;
   }
 
   const canRecord = computed(
@@ -54,6 +65,11 @@ export const useAuthStore = defineStore("auth", () => {
     setAuthToken(data.access_token);
     username.value = u;
     role.value = parseJwtRole(data.access_token);
+    try {
+      await fetchMe();
+    } catch {
+      /* роль уже из JWT */
+    }
   }
 
   async function fetchMe() {

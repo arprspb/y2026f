@@ -18,8 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute(sa.text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'operator_record'"))
-    op.execute(sa.text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'operator_verify'"))
+    # PostgreSQL: новые значения enum нельзя использовать в той же транзакции, что и ADD VALUE.
+    # autocommit_block коммитит ALTER TYPE до UPDATE и остальных шагов.
+    with op.get_context().autocommit_block():
+        op.execute(sa.text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'operator_record'"))
+        op.execute(sa.text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'operator_verify'"))
     op.execute(
         sa.text(
             "UPDATE users SET role = 'operator_record'::userrole "
