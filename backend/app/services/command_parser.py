@@ -79,7 +79,28 @@ def normalize_transcript_for_commands(raw: str) -> str:
         else:
             merged.append(tok)
             i += 1
-    return " ".join(merged)
+    joined = " ".join(merged)
+    return _collapse_digit_block_with_spaced_letter_suffix(joined)
+
+
+# ASR часто даёт «12345 в б д» вместо слитного «12345вбд» — без склейки MIXED_ID не находит ID.
+_COLLAPSE_DIGITS_LETTERS = re.compile(
+    r"(\d{2,})\s+([а-яёa-z](?:\s+[а-яёa-z]){0,24})",
+    re.IGNORECASE,
+)
+
+
+def _collapse_digit_block_with_spaced_letter_suffix(text: str) -> str:
+    s = text
+    for _ in range(6):
+        ns = _COLLAPSE_DIGITS_LETTERS.sub(
+            lambda m: m.group(1) + re.sub(r"\s+", "", m.group(2)),
+            s,
+        )
+        if ns == s:
+            break
+        s = ns
+    return s
 
 
 def extract_command(normalized: str) -> str | None:
