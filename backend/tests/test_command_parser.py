@@ -37,3 +37,15 @@ def test_digits_then_spaced_cyrillic_suffix_mixed_id() -> None:
     r = parse_voice_text("зарегистрировать 12345 в б д")
     assert r.command == "зарегистрировать"
     assert r.identifier == "12345вбд"
+
+
+def test_short_digit_run_with_command() -> None:
+    r = parse_voice_text("начать обработку 123")
+    assert r.command == "начать обработку"
+    assert r.identifier == "123"
+
+
+def test_letters_only_id_after_command() -> None:
+    r = parse_voice_text("зарегистрировать абвгд")
+    assert r.command == "зарегистрировать"
+    assert r.identifier == "абвгд"
