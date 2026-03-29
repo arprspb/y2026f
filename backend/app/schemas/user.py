@@ -14,7 +14,7 @@ class UserListItem(BaseModel):
 
 class UserAdminCreate(BaseModel):
     username: str = Field(min_length=2, max_length=64)
-    password: str = Field(min_length=4, max_length=128)
+    password: str = Field(min_length=4, max_length=512)
     role: UserRole = UserRole.operator
 
 

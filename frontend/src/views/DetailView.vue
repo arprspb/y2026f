@@ -2,6 +2,7 @@
 import { ref, watch, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import api from "@/api/client";
+import { getApiErrorMessage } from "@/api/errors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -40,8 +41,8 @@ async function load() {
       const blob = await res.blob();
       audioUrl.value = URL.createObjectURL(blob);
     }
-  } catch {
-    err.value = "Ошибка загрузки";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Ошибка загрузки");
   }
 }
 
@@ -52,8 +53,8 @@ async function saveEdit() {
       edited_transcript: edited.value,
     });
     row.value = data;
-  } catch {
-    err.value = "Ошибка сохранения";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Ошибка сохранения");
   }
 }
 
@@ -62,8 +63,8 @@ async function confirm() {
   try {
     const { data } = await api.patch(`/api/voice-commands/${row.value.id}`, { confirmed: true });
     row.value = data;
-  } catch {
-    err.value = "Ошибка подтверждения";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Ошибка подтверждения");
   }
 }
 

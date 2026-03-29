@@ -36,7 +36,10 @@ async def create_user(
 ) -> User:
     exists = await db.execute(select(User).where(User.username == body.username))
     if exists.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username taken")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Этот логин уже занят",
+        )
     user = User(
         username=body.username,
         hashed_password=hash_password(body.password),
@@ -59,7 +62,10 @@ async def update_user(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
     if body.role is not None:
         user.role = body.role
     if body.is_active is not None:

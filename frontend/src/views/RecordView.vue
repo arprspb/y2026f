@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "@/api/client";
+import { getApiErrorMessage } from "@/api/errors";
 
 const router = useRouter();
 const recording = ref(false);
@@ -20,7 +21,8 @@ async function start() {
     if (e.data.size) chunks.value.push(e.data);
   };
   mr.onstop = () => stream.getTracks().forEach((t) => t.stop());
-  mr.start();
+  // Интервал даёт куски данных до stop — иначе в части браузеров финальный chunk опоздает.
+  mr.start(250);
   recording.value = true;
 }
 
@@ -38,13 +40,20 @@ async function stopAndSend() {
   recording.value = false;
   mediaRecorder.value = null;
   const blob = new Blob(chunks.value, { type: "audio/webm" });
+  if (!blob.size) {
+    err.value = "Запись пустая — разрешите микрофон и попробуйте ещё раз.";
+    return;
+  }
   const fd = new FormData();
   fd.append("file", blob, "record.webm");
   try {
     const { data } = await api.post("/api/voice-commands", fd);
     await router.push({ name: "detail", params: { id: String(data.id) } });
-  } catch {
-    err.value = "Ошибка отправки. Проверьте бэкенд, ffmpeg и модель VOSK.";
+  } catch (e) {
+    err.value = getApiErrorMessage(
+      e,
+      "Ошибка отправки. Проверьте бэкенд, ffmpeg и модель VOSK.",
+    );
   }
 }
 </script>

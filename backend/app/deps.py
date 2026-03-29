@@ -17,17 +17,29 @@ async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
 ) -> User:
     if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Требуется вход",
+        )
     payload = decode_token(credentials.credentials)
     if payload is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Недействительный токен",
+        )
     uid = payload.get("user_id")
     if uid is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Недействительный токен",
+        )
     result = await db.execute(select(User).where(User.id == int(uid)))
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User inactive or missing")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден или отключён",
+        )
     return user
 
 
@@ -36,7 +48,10 @@ CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 async def require_admin(user: CurrentUserDep) -> User:
     if user.role != UserRole.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Нужны права администратора",
+        )
     return user
 
 

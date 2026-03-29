@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.database import engine
 from app.routers import auth, users, voice_commands
+from app.validation_errors import format_request_validation_errors
 
 settings = get_settings()
 
@@ -17,6 +20,15 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Voice Commands API", lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(
+    _request, exc: RequestValidationError
+) -> JSONResponse:
+    message = format_request_validation_errors(exc.errors())
+    return JSONResponse(status_code=422, content={"detail": message})
+
 
 origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(

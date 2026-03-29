@@ -1,8 +1,8 @@
 import axios from "axios";
 
+/** Без глобального Content-Type: для JSON axios выставит сам, для FormData — браузер (boundary). */
 const api = axios.create({
   baseURL: "",
-  headers: { "Content-Type": "application/json" },
 });
 
 export function setAuthToken(token: string | null) {

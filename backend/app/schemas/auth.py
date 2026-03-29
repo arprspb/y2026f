@@ -5,7 +5,7 @@ from app.models import UserRole
 
 class UserCreate(BaseModel):
     username: str = Field(min_length=2, max_length=64)
-    password: str = Field(min_length=4, max_length=128)
+    password: str = Field(min_length=4, max_length=512)
 
 
 class UserLogin(BaseModel):

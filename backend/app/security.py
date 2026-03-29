@@ -1,22 +1,30 @@
 from datetime import UTC, datetime, timedelta
+import hashlib
 from typing import Any
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.config import get_settings
 from app.models import UserRole
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 settings = get_settings()
 
 
+def _password_digest(password: str) -> bytes:
+    """SHA256 перед bcrypt: без лимита 72 байта у bcrypt и без устаревшего passlib."""
+    return hashlib.sha256(password.encode("utf-8")).digest()
+
+
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(_password_digest(plain), hashed.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_password_digest(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(subject: str, user_id: int, role: UserRole) -> str:

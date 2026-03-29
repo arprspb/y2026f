@@ -1,4 +1,7 @@
+# syntax=docker/dockerfile:1
 FROM python:3.13.7-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
@@ -9,7 +12,9 @@ COPY app ./app
 COPY alembic.ini ./
 COPY alembic ./alembic/
 
-RUN pip install --no-cache-dir -e .
+ENV UV_LINK_MODE=copy
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -e .
 
 RUN mkdir -p /uploads
 

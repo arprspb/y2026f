@@ -4,7 +4,7 @@
 
 ## Быстрый запуск (рекомендуется для проверки)
 
-1. Скачайте [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) и распакуйте в `./models/vosk-model-small-ru-0.22/`.
+1. **Модель VOSK** лежит в репозитории: `models/vosk-model-small-ru-0.22/` (должен быть файл `am/final.mdl`). Оригинал: [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) (Apache 2.0). Если после клона каталог пустой — распакуйте туда архив с сайта Alphacehei.
 
 2. Скопируйте переменные окружения и при необходимости поправьте секреты:
 

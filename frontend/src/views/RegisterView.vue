@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { getApiErrorMessage } from "@/api/errors";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
@@ -13,10 +14,15 @@ async function submit() {
   err.value = "";
   try {
     await auth.register(username.value, password.value);
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Не удалось зарегистрироваться");
+    return;
+  }
+  try {
     await auth.login(username.value, password.value);
     await router.push("/record");
-  } catch {
-    err.value = "Не удалось зарегистрироваться";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Аккаунт создан, но вход не удался");
   }
 }
 </script>

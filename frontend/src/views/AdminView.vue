@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import api from "@/api/client";
+import { getApiErrorMessage } from "@/api/errors";
 
 interface U {
   id: number;
@@ -20,8 +21,8 @@ async function load() {
   try {
     const { data } = await api.get<U[]>("/api/users");
     users.value = data;
-  } catch {
-    err.value = "Нет доступа или ошибка сети";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Нет доступа или ошибка сети");
   }
 }
 
@@ -36,8 +37,8 @@ async function createUser() {
     newUsername.value = "";
     newPassword.value = "";
     await load();
-  } catch {
-    err.value = "Не удалось создать пользователя";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Не удалось создать пользователя");
   }
 }
 

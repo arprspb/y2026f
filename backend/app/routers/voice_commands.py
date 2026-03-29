@@ -46,7 +46,18 @@ async def create_voice_command(
     wav_path = upload_dir / f"{uuid.uuid4().hex}.wav"
     try:
         await asyncio.to_thread(convert_to_wav_16k_mono, dest, wav_path)
-        transcript = await asyncio.to_thread(transcribe_wav_file, wav_path)
+        try:
+            transcript = await asyncio.to_thread(transcribe_wav_file, wav_path)
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(e),
+            ) from e
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
     finally:
         wav_path.unlink(missing_ok=True)
 
@@ -138,10 +149,10 @@ async def get_voice_command(
     )
     row = result.one_or_none()
     if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
     vc, uname = row
     if current.role != UserRole.admin and vc.user_id != current.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     return VoiceCommandCreateResponse(
         id=vc.id,
         raw_transcript=vc.raw_transcript,
@@ -168,10 +179,10 @@ async def patch_voice_command(
     )
     row = result.one_or_none()
     if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
     vc, uname = row
     if current.role != UserRole.admin and vc.user_id != current.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
 
     if body.edited_transcript is not None:
         vc.edited_transcript = body.edited_transcript
@@ -208,10 +219,10 @@ async def get_audio(
     result = await db.execute(select(VoiceCommand).where(VoiceCommand.id == command_id))
     vc = result.scalar_one_or_none()
     if vc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
     if current.role != UserRole.admin and vc.user_id != current.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     path = Path(settings.upload_dir) / vc.audio_filename
     if not path.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File missing")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл записи отсутствует на сервере")
     return FileResponse(path, filename=vc.audio_filename)

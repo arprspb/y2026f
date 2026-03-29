@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import api from "@/api/client";
+import { getApiErrorMessage } from "@/api/errors";
 
 export interface Row {
   id: number;
@@ -33,8 +34,8 @@ async function load() {
     if (dateTo.value) params.date_to = new Date(dateTo.value).toISOString();
     const { data } = await api.get<Row[]>("/api/voice-commands", { params });
     rows.value = data;
-  } catch {
-    err.value = "Не удалось загрузить историю";
+  } catch (e) {
+    err.value = getApiErrorMessage(e, "Не удалось загрузить историю");
   }
 }
 
