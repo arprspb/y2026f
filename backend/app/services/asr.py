@@ -43,7 +43,7 @@ def describe_vosk_folder(path: Path) -> str:
     except OSError as e:
         return f"не удалось прочитать: {e}"
     if not names:
-        return "каталог пустой — скачайте и распакуйте vosk-model-small-ru-0.22"
+        return "каталог пустой — скачайте и распакуйте русскую модель VOSK (см. README, vosk-model-ru-0.42)"
     return f"содержимое верхнего уровня: {', '.join(names[:15])}{'…' if len(names) > 15 else ''}"
 
 
@@ -58,7 +58,7 @@ def _load_model():
         if not path.is_dir():
             msg = (
                 f"Модель VOSK: {path} не найдена. {describe_vosk_folder(root)}. "
-                "См. README: распаковка в ./models/vosk-model-small-ru-0.22"
+                "См. README: каталог из VOSK_MODEL_PATH (по умолчанию ./models/vosk-model-ru-0.42)"
             )
             raise RuntimeError(msg)
 
@@ -66,9 +66,9 @@ def _load_model():
             msg = (
                 f"В {path} нет файлов модели VOSK (ожидается am/final.mdl). "
                 f"{describe_vosk_folder(path)}. "
-                "Скачайте архив с https://alphacephei.com/vosk/models , распакуйте так, "
-                "чтобы в точке монтирования оказались папки am, conf, graph (часто нужно "
-                "поднять файлы из внутренней vosk-model-small-ru-0.22 на уровень выше)."
+                "Скачайте архив с https://alphacephei.com/vosk/models (русская большая модель), "
+                "распакуйте так, чтобы в каталоге модели оказались папки am, conf, graph "
+                "(часто нужно поднять содержимое из внутренней папки архива на уровень выше)."
             )
             raise RuntimeError(msg)
 

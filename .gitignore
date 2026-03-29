@@ -6,3 +6,8 @@ frontend/dist
 backend/uploads
 .env
 backend/.env
+
+# Тяжёлые модели VOSK не коммитим — скачивание по README
+models/vosk-model-ru-0.42/
+models/vosk-model-ru-0.22/
+models/vosk-model-ru-0.10/

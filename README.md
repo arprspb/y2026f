@@ -4,7 +4,16 @@
 
 ## Быстрый запуск (рекомендуется для проверки)
 
-1. **Модель VOSK** лежит в репозитории: `models/vosk-model-small-ru-0.22/` (должен быть файл `am/final.mdl`). Оригинал: [vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models) (Apache 2.0). Если после клона каталог пустой — распакуйте туда архив с сайта Alphacehei.
+1. **Модель VOSK (русская, для сервера)** по умолчанию — **[vosk-model-ru-0.42](https://alphacephei.com/vosk/models/vosk-model-ru-0.42.zip)** (~1.8 ГБ, качество заметно выше, чем у small). Лицензия Apache 2.0. Скачайте архив и распакуйте так, чтобы по пути `models/vosk-model-ru-0.42/` лежал файл `am/final.mdl` (при необходимости перенесите содержимое из вложенной папки внутри архива на уровень выше).
+
+   ```bash
+   mkdir -p models && cd models
+   wget https://alphacephei.com/vosk/models/vosk-model-ru-0.42.zip
+   unzip vosk-model-ru-0.42.zip
+   # Должно получиться: models/vosk-model-ru-0.42/am/final.mdl
+   ```
+
+   Крупные модели VOSK рассчитаны на машины с достаточным объёмом RAM (ориентир — единицы–десятки ГБ под загрузку модели; точное число зависит от ОС и версии). Для слабых ПК можно указать в `.env` путь на облегчённую **[vosk-model-small-ru-0.22](https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip)** (~45 МБ) в `VOSK_MODEL_PATH`.
 
 2. Скопируйте переменные окружения и при необходимости поправьте секреты:
 

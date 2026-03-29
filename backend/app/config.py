@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
 
     upload_dir: str = "./uploads"
-    vosk_model_path: str = "./models/vosk-model-small-ru-0.22"
+    # Крупная русская модель по умолчанию (качество лучше, чем у small-ru). См. README — скачать архив.
+    vosk_model_path: str = "./models/vosk-model-ru-0.42"
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
