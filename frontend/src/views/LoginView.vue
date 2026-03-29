@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getApiErrorMessage } from "@/api/errors";
 import { useAuthStore } from "@/stores/auth";
@@ -15,8 +15,9 @@ async function submit() {
   err.value = "";
   try {
     await auth.login(username.value, password.value);
+    await nextTick();
     const redirect = (route.query.redirect as string) || "/record";
-    await router.push(redirect);
+    await router.replace(redirect);
   } catch (e) {
     err.value = getApiErrorMessage(e, "Неверный логин или пароль");
   }

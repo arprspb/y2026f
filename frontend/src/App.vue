@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
+import { RouterLink, RouterView, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { onMounted } from "vue";
 
 const auth = useAuthStore();
+const route = useRoute();
 
 onMounted(async () => {
   if (auth.isAuthenticated && !auth.username) {
@@ -27,6 +28,6 @@ onMounted(async () => {
     </button>
   </header>
   <main style="padding: 1rem">
-    <RouterView />
+    <RouterView :key="route.fullPath" />
   </main>
 </template>

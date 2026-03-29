@@ -111,3 +111,18 @@ textarea {
   margin-bottom: 1.5rem;
   align-items: center;
 }
+.record-viz-wrap {
+  margin-top: 1rem;
+}
+.record-viz-caption {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  color: #c62828;
+  font-weight: 600;
+}
+.record-viz-canvas {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #cfd8dc;
+  background: #e8eef2;
+}

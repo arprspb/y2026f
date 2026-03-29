@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { useRouter } from "vue-router";
 import { getApiErrorMessage } from "@/api/errors";
 import { useAuthStore } from "@/stores/auth";
@@ -20,7 +20,8 @@ async function submit() {
   }
   try {
     await auth.login(username.value, password.value);
-    await router.push("/record");
+    await nextTick();
+    await router.replace({ name: "record" });
   } catch (e) {
     err.value = getApiErrorMessage(e, "Аккаунт создан, но вход не удался");
   }
